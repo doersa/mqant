@@ -20,11 +20,13 @@ QQ交流群 :463735103
 
 技术交流社区:[www.mqant.com](http://www.mqant.com)
 
-# 三方模块
+# 模块
 
 > 将不断加入更多的模块
 
-[三方组件库](https://github.com/liangdas/mqant-modules)
+[mqant组件库](https://github.com/liangdas/mqant-modules)
+
+[压力测试工具:armyant](https://github.com/liangdas/armyant)
 
 # 依赖项目
 
@@ -63,7 +65,7 @@ QQ交流群 :463735103
  [多人对战吃小球游戏（绿色小球是在线玩家,点击屏幕任意位置移动小球,可以同时开两个浏览器测试,支持移动端）](http://www.mqant.com/mqant/hitball/)【[源码下载](https://github.com/liangdas/mqantserver)】
 
  
- 
+ [mqant-docker 由社区提供的docker环境](https://github.com/bjfumac/mqant-docker)
  
 
 #	框架架构
@@ -97,10 +99,18 @@ bug请直接通过issue提交
 
 1. [xlionet](https://github.com/xlionet)
 2. [lulucas](https://github.com/lulucas/mqant-UnityExample)
+3. [c2matrix](https://github.com/c2matrix)
+4. [bjfumac【mqant-docker】](https://github.com/bjfumac)
 
 
 
 ## 版本日志
+
+### [v1.6.7新特性](https://github.com/liangdas/mqant/wiki/v1.6.7)
+
+### [v1.6.6新特性](https://github.com/liangdas/mqant/wiki/v1.6.6)
+
+### [v1.6.5新特性](https://github.com/liangdas/mqant/wiki/v1.6.5)
 
 ### [v1.6.4新特性](https://github.com/liangdas/mqant/wiki/v1.6.4)
 

@@ -18,28 +18,29 @@ import (
 	"container/list"
 	"encoding/json"
 	"fmt"
-	"github.com/liangdas/mqant/conf"
-	"github.com/liangdas/mqant/gate"
-	"github.com/liangdas/mqant/gate/base/mqtt"
-	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/network"
-	"github.com/liangdas/mqant/rpc/util"
-	"github.com/liangdas/mqant/utils/uuid"
 	"math/rand"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/liangdas/mqant/conf"
+	"github.com/liangdas/mqant/gate"
+	"github.com/liangdas/mqant/gate/base/mqtt"
+	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/network"
+	"github.com/liangdas/mqant/rpc/util"
+	"github.com/liangdas/mqant/utils/uuid"
 )
 
-type resultInfo struct {
-	Error  string      //错误结果 如果为nil表示请求正确
-	Result interface{} //结果
-}
+//type resultInfo struct {
+//	Error  string      //错误结果 如果为nil表示请求正确
+//	Result interface{} //结果
+//}
 
 type agent struct {
 	gate.Agent
-	module 				module.RPCModule
+	module                           module.RPCModule
 	session                          gate.Session
 	conn                             network.Conn
 	r                                *bufio.Reader
@@ -51,20 +52,21 @@ type agent struct {
 	rev_num                          int64
 	send_num                         int64
 }
-func NewMqttAgent(module module.RPCModule)*agent{
+
+func NewMqttAgent(module module.RPCModule) *agent {
 	a := &agent{
-		module:module,
+		module: module,
 	}
 	return a
 }
-func (this *agent) OnInit(gate gate.Gate,conn network.Conn)error{
-	this.conn=conn
-	this.gate=gate
-	this.r=bufio.NewReader(conn)
-	this.w=bufio.NewWriter(conn)
-	this.isclose=false
-	this.rev_num=0
-	this.send_num=0
+func (this *agent) OnInit(gate gate.Gate, conn network.Conn) error {
+	this.conn = conn
+	this.gate = gate
+	this.r = bufio.NewReaderSize(conn, 256)
+	this.w = bufio.NewWriterSize(conn, 256)
+	this.isclose = false
+	this.rev_num = 0
+	this.send_num = 0
 	return nil
 }
 func (a *agent) IsClosed() bool {
@@ -149,25 +151,38 @@ func (a *agent) OnRecover(pack *mqtt.Pack) {
 		}
 	}()
 
-	toResult := func(a *agent, Topic string, Result interface{}, Error string) (err error) {
-		r := &resultInfo{
-			Error:  Error,
-			Result: Result,
+	toResult := func(a *agent, Topic string, Result interface{}, Error string) error {
+		switch v2 := Result.(type) {
+		case module.ProtocolMarshal:
+			return a.WriteMsg(Topic, v2.GetData())
 		}
-		b, err := json.Marshal(r)
-		if err == nil {
-			a.WriteMsg(Topic, b)
+		b, err := a.module.GetApp().ProtocolMarshal(Result, Error)
+		if err == "" {
+			return a.WriteMsg(Topic, b.GetData())
 		} else {
-			r = &resultInfo{
-				Error:  err.Error(),
-				Result: nil,
-			}
-			log.Error(err.Error())
-
-			br, _ := json.Marshal(r)
-			a.WriteMsg(Topic, br)
+			log.Error(err)
+			br, _ := a.module.GetApp().ProtocolMarshal(nil, err)
+			return a.WriteMsg(Topic, br.GetData())
 		}
-		return
+		return fmt.Errorf(err)
+		//r := &resultInfo{
+		//	Error:  Error,
+		//	Result: Result,
+		//}
+		//b, err := json.Marshal(r)
+		//if err == nil {
+		//	a.WriteMsg(Topic, b)
+		//} else {
+		//	r = &resultInfo{
+		//		Error:  err.Error(),
+		//		Result: nil,
+		//	}
+		//	log.Error(err.Error())
+		//
+		//	br, _ := json.Marshal(r)
+		//	a.WriteMsg(Topic, br)
+		//}
+		//return
 	}
 	//路由服务
 	switch pack.GetType() {
@@ -177,7 +192,9 @@ func (a *agent) OnRecover(pack *mqtt.Pack) {
 		topics := strings.Split(*pub.GetTopic(), "/")
 		var msgid string
 		if len(topics) < 2 {
-			log.Error("Topic must be [moduleType@moduleID]/[handler]|[moduleType@moduleID]/[handler]/[msgid]")
+			errorstr := "Topic must be [moduleType@moduleID]/[handler]|[moduleType@moduleID]/[handler]/[msgid]"
+			log.Error(errorstr)
+			toResult(a, *pub.GetTopic(), nil, errorstr)
 			return
 		} else if len(topics) == 3 {
 			msgid = topics[2]
@@ -206,11 +223,11 @@ func (a *agent) OnRecover(pack *mqtt.Pack) {
 		} else {
 			hash = a.module.GetServerId()
 		}
-		if (a.gate.GetTracingHandler() != nil) && a.gate.GetTracingHandler().OnRequestTracing(a.session, pub) {
+		if (a.gate.GetTracingHandler() != nil) && a.gate.GetTracingHandler().OnRequestTracing(a.session, *pub.GetTopic(), pub.GetMsg()) {
 			a.session.CreateRootSpan("gate")
 		}
 
-		serverSession, err := a.module.GetRouteServers(topics[0], hash)
+		serverSession, err := a.module.GetRouteServer(topics[0], hash)
 		if err != nil {
 			if msgid != "" {
 				toResult(a, *pub.GetTopic(), nil, fmt.Sprintf("Service(type:%s) not found", topics[0]))

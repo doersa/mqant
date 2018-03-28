@@ -156,7 +156,7 @@ func (this *sessionagent) Update() (err string) {
 		err = fmt.Sprintf("Module.App is nil")
 		return
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		err = fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 		return
@@ -176,7 +176,7 @@ func (this *sessionagent) Bind(Userid string) (err string) {
 		err = fmt.Sprintf("Module.App is nil")
 		return
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		err = fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 		return
@@ -196,7 +196,7 @@ func (this *sessionagent) UnBind() (err string) {
 		err = fmt.Sprintf("Module.App is nil")
 		return
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		err = fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 		return
@@ -216,7 +216,7 @@ func (this *sessionagent) Push() (err string) {
 		err = fmt.Sprintf("Module.App is nil")
 		return
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		err = fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 		return
@@ -240,21 +240,19 @@ func (this *sessionagent) Set(key string, value string) (err string) {
 		this.session.Settings = map[string]string{}
 	}
 	this.session.Settings[key] = value
-	//server,e:=session.app.GetServersById(session.Serverid)
-	//if e!=nil{
-	//	err=fmt.Sprintf("Service not found id(%s)",session.Serverid)
-	//	return
-	//}
-	//result,err:=server.Call("Set",session.Sessionid,key,value)
-	//if err==""{
-	//	if result!=nil{
-	//		//绑定成功,重新更新当前Session
-	//		session.update(result.(map[string]interface {}))
-	//	}
-	//}
 	return
 }
-
+func (this *sessionagent) SetPush(key string, value string) (err string) {
+	if this.app == nil {
+		err = fmt.Sprintf("Module.App is nil")
+		return
+	}
+	if this.session.Settings == nil {
+		this.session.Settings = map[string]string{}
+	}
+	this.session.Settings[key] = value
+	return this.Push()
+}
 func (this *sessionagent) Get(key string) (result string) {
 	if this.session.Settings == nil {
 		return
@@ -278,18 +276,34 @@ func (this *sessionagent) Send(topic string, body []byte) string {
 	if this.app == nil {
 		return fmt.Sprintf("Module.App is nil")
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		return fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 	}
 	_, err := server.Call("Send", this.session.Sessionid, topic, body)
 	return err
 }
+
+func (this *sessionagent) SendBatch(Sessionids string, topic string, body []byte) (int64, string) {
+	if this.app == nil {
+		return 0, fmt.Sprintf("Module.App is nil")
+	}
+	server, e := this.app.GetServerById(this.session.Serverid)
+	if e != nil {
+		return 0, fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
+	}
+	count, err := server.Call("SendBatch", Sessionids, topic, body)
+	if err != "" {
+		return 0, err
+	}
+	return count.(int64), err
+}
+
 func (this *sessionagent) IsConnect(userId string) (bool, string) {
 	if this.app == nil {
 		return false, fmt.Sprintf("Module.App is nil")
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		return false, fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 	}
@@ -301,7 +315,7 @@ func (this *sessionagent) SendNR(topic string, body []byte) string {
 	if this.app == nil {
 		return fmt.Sprintf("Module.App is nil")
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		return fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 	}
@@ -324,7 +338,7 @@ func (this *sessionagent) Close() (err string) {
 		err = fmt.Sprintf("Module.App is nil")
 		return
 	}
-	server, e := this.app.GetServersById(this.session.Serverid)
+	server, e := this.app.GetServerById(this.session.Serverid)
 	if e != nil {
 		err = fmt.Sprintf("Service not found id(%s)", this.session.Serverid)
 		return
@@ -419,6 +433,14 @@ func (this *sessionagent) Span() opentracing.Span {
 
 func (this *sessionagent) TracCarrier() map[string]string {
 	return this.session.Carrier
+}
+func (this *sessionagent) TracId() string {
+	if this.TracCarrier() != nil {
+		if tid, ok := this.TracCarrier()["ot-tracer-traceid"]; ok {
+			return tid
+		}
+	}
+	return ""
 }
 
 /**

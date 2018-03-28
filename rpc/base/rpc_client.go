@@ -98,6 +98,10 @@ func (c *RPCClient) CallArgs(_func string, ArgsType []string, args [][]byte) (in
 		Args:     args,
 		ArgsType: ArgsType,
 	}
+	if c.app.GetSettings().Rpc.Log {
+		log.Info("request %s rpc func(%s) [%s]", c.serverId, _func, correlation_id)
+	}
+
 	callInfo := &mqrpc.CallInfo{
 		RpcInfo: *rpcInfo,
 	}
@@ -113,12 +117,17 @@ func (c *RPCClient) CallArgs(_func string, ArgsType []string, args [][]byte) (in
 	} else {
 		return nil, fmt.Sprintf("rpc service (%s) connection failed", c.serverId)
 	}
-
+	if err != nil {
+		return nil, err.Error()
+	}
 	resultInfo, ok := <-callback
 	if !ok {
 		return nil, "client closed"
 	}
 	result, err := argsutil.Bytes2Args(c.app, resultInfo.ResultType, resultInfo.Result)
+	if c.app.GetSettings().Rpc.Log {
+		log.Info("response %s rpc func(%s) [%s]", c.serverId, _func, correlation_id)
+	}
 	if err != nil {
 		return nil, err.Error()
 	}
@@ -134,6 +143,9 @@ func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (
 		Cid:      *proto.String(correlation_id),
 		Args:     args,
 		ArgsType: ArgsType,
+	}
+	if c.app.GetSettings().Rpc.Log {
+		log.Info("request %s rpc(nr) func(%s) [%s]", c.serverId, _func, correlation_id)
 	}
 	callInfo := &mqrpc.CallInfo{
 		RpcInfo: *rpcInfo,

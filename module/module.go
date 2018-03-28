@@ -20,6 +20,10 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
+type ProtocolMarshal interface {
+	GetData() []byte
+}
+
 type ServerSession interface {
 	GetId() string
 	GetType() string
@@ -40,12 +44,12 @@ type App interface {
 	OnInit(settings conf.Config) error
 	OnDestroy() error
 	RegisterLocalClient(serverId string, server mqrpc.RPCServer) error
-	GetServersById(id string) (ServerSession, error)
+	GetServerById(id string) (ServerSession, error)
 	/**
 	filter		 调用者服务类型    moduleType|moduleType@moduleID
 	Type	   	想要调用的服务类型
 	*/
-	GetRouteServers(filter string, hash string) (ServerSession, error) //获取经过筛选过的服务
+	GetRouteServer(filter string, hash string) (ServerSession, error) //获取经过筛选过的服务
 	GetServersByType(Type string) []ServerSession
 	GetSettings() conf.Config //获取配置信息
 	RpcInvoke(module RPCModule, moduleType string, _func string, params ...interface{}) (interface{}, string)
@@ -72,6 +76,14 @@ type App interface {
 	OnStartup(func(app App)) error
 
 	SetJudgeGuest(judgeGuest func(session gate.Session) bool) error
+
+	SetProtocolMarshal(protocolMarshal func(Result interface{}, Error string) (ProtocolMarshal, string)) error
+	/**
+	与客户端通信的协议包接口
+	*/
+	ProtocolMarshal(Result interface{}, Error string) (ProtocolMarshal, string)
+	NewProtocolMarshal(data []byte) ProtocolMarshal
+	GetProcessID() string
 }
 
 type Module interface {
@@ -96,7 +108,7 @@ type RPCModule interface {
 	filter		 调用者服务类型    moduleType|moduleType@moduleID
 	Type	   	想要调用的服务类型
 	*/
-	GetRouteServers(filter string, hash string) (ServerSession, error)
+	GetRouteServer(filter string, hash string) (ServerSession, error)
 	GetStatistical() (statistical string, err error)
 	GetExecuting() int64
 }
